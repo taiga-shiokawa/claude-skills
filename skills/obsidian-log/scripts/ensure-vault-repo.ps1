@@ -123,13 +123,17 @@ $GitAttributesBody = @'
 # 保管庫のノートは Write ツールが LF で書くので、LF に寄せるのが実態に合う。
 * text=auto eol=lf
 
-# 将来ノートに画像や PDF を添付したとき、改行変換で壊されないようにしておく。
+# 添付ファイルを改行変換で壊さない。text=auto でも自動判定されるが、明示しておく。
 *.png  binary
 *.jpg  binary
 *.jpeg binary
 *.gif  binary
 *.webp binary
 *.pdf  binary
+*.pptx binary
+*.xlsx binary
+*.docx binary
+*.drawio binary
 '@
 
 $ReadmeBody = @'
@@ -254,23 +258,34 @@ try {
     }
 
     # 6. codex-skills が追跡されていないことを確認（壊れた gitlink を作らせない）
-    $tracked = Invoke-Git @('ls-files', '--error-unmatch', 'codex-skills') -AllowFailure
-    if ($tracked.ExitCode -eq 0) {
-        throw "codex-skills が追跡されています。壊れた gitlink になっているため、`ngit rm --cached -r codex-skills`nで外してから再試行してください。"
+    # --error-unmatch は未追跡のとき stderr に error を吐いて紛らわしいので、
+    # 出力が空かどうかで判定する。
+    $tracked = @((Invoke-Git @('ls-files', '--', 'codex-skills')).Output | Where-Object { $_ })
+    if ($tracked.Count -gt 0) {
+        throw ("codex-skills が {0} 件追跡されています。壊れた gitlink になっているため、`ngit rm --cached -r codex-skills`nで外してから再試行してください。" -f $tracked.Count)
     }
     Write-Step 'OK' 'codex-skills は追跡されていない'
 
     # 7. 初回コミット
     $status = Invoke-Git @('status', '--porcelain')
     $hasChanges = (($status.Output | Out-String).Trim().Length -gt 0)
-    $hasHead = (Invoke-Git @('rev-parse', '--verify', 'HEAD') -AllowFailure).ExitCode -eq 0
+    # --quiet を付けないと、初回コミット前に "Needed a single revision" を stderr に吐く。
+    $hasHead = (Invoke-Git @('rev-parse', '--quiet', '--verify', 'HEAD') -AllowFailure).ExitCode -eq 0
 
     if (-not $hasChanges) {
         Write-Step 'SKIP' 'コミットする変更が無い'
     } else {
-        # .gitignore に加えて pathspec でも codex-skills を外す。初回の add がいちばん危険で、
-        # 一度 gitlink として index に入ると後から .gitignore を足しても外れない。
-        Invoke-Git @('add', '-A', '--', '.', ':(exclude)codex-skills') | Out-Null
+        # 除外は .gitignore に任せる。`:(exclude)codex-skills` を渡すと、git は
+        # 「無視対象のパスを明示的に名指しした」と解釈して exit 1 で止まるため併用できない。
+        Invoke-Git @('add', '-A') | Out-Null
+
+        # 代わりに事後検証する。初回の add がいちばん危険で、一度 gitlink として index に
+        # 入ると後から .gitignore を足しても外れない。
+        $leak = @((Invoke-Git @('diff', '--cached', '--name-only')).Output | Where-Object { $_ -like 'codex-skills*' })
+        if ($leak.Count -gt 0) {
+            throw ("codex-skills が {0} 件ステージされました（.gitignore が効いていません）。`ngit -C `"{1}`" rm -r --cached codex-skills`nで外し、.gitignore に codex-skills/ があるか確認してから再試行してください。" -f $leak.Count, $Vault)
+        }
+
         if ($hasHead) {
             $msg = '保管庫の未コミット分をまとめて取り込む'
         } else {

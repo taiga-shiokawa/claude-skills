@@ -236,9 +236,18 @@ try {
     }
 
     # 2. ステージング。全角スペース入りのファイル名でも add -A なら安全。
-    # codex-skills は .gitignore で除外しているが、pathspec でも明示的に外す。
-    # .gitignore が消えたり編集を誤った場合でも、壊れた gitlink を作らないための二重の防御。
-    Invoke-Git @('add', '-A', '--', '.', ':(exclude)codex-skills') | Out-Null
+    # 除外は .gitignore に任せる。`:(exclude)codex-skills` を渡すと、git は「無視対象のパスを
+    # 明示的に名指しした」と解釈して exit 1 で止まるため併用できない。
+    Invoke-Git @('add', '-A') | Out-Null
+
+    # 代わりに事後検証する。壊れた gitlink は一度 index に入ると後から外しにくい。
+    $leak = @((Invoke-Git @('diff', '--cached', '--name-only')).Output | Where-Object { $_ -like 'codex-skills*' })
+    if ($leak.Count -gt 0) {
+        Write-Output ('GITLINK_RISK: codex-skills が {0} 件ステージされました（.gitignore が効いていません）。' -f $leak.Count)
+        Write-Output ('  外す: git -C "{0}" rm -r --cached codex-skills' -f $Vault)
+        Write-Output '  そのうえで .gitignore に codex-skills/ があるか確認してください。'
+        exit 4
+    }
 
     # 3. コミット
     if ([string]::IsNullOrWhiteSpace($Title)) {
