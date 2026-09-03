@@ -48,7 +48,7 @@ New-Item -ItemType Junction -Path "$env:USERPROFILE\.claude\skills" -Target "$PW
 | `gas-push` | `clasp status` で点検してから `clasp push`。リモートを丸ごと上書きするため対象一覧の確認を必ず挟む |
 | `hearing-sheet` | Drive のヒアリングシート雛形に沿ってヒアリングし、記入済みシートを Drive へ、`docs/idea.md` をローカルへ書き出す |
 | `natural-japanese` | 日本語文書の執筆・校正とAI臭さの除去。**サードパーティ製**（下記参照） |
-| `obsidian-log` | 会話を構造化サマリのノート1枚にまとめ、Obsidian 保管庫「AI Log」に保存する |
+| `obsidian-log` | 会話を構造化サマリのノート1枚にまとめ、Obsidian 保管庫「AI Log」に保存し、保管庫の Private リポジトリ（`obsidian-ai-log`）へ commit / push する |
 | `weekly-report` | エンジニアチームの週次報告書を Google ドキュメントとして作成し、Drive の指定フォルダへ `週次報告書_YYYYMMDD` で保存する |
 
 ## コマンド一覧
@@ -86,7 +86,7 @@ New-Item -ItemType Junction -Path "$env:USERPROFILE\.claude\skills" -Target "$PW
 | Google Drive / スプレッドシート / Gmail コネクタ | `atlas-register` `weekly-report` `hearing-sheet` | |
 | `fieldspec-os` MCP サーバ | `fsos-spec-fetcher` `/fsos-dev` | |
 | SharePoint 同期フォルダ | `daily-report` | `MySharePoint - DailyReport` |
-| Obsidian 保管庫 | `obsidian-log` | `~/Documents/AI Log` |
+| Obsidian 保管庫 | `obsidian-log` | `~/Documents/AI Log`（[obsidian-ai-log](https://github.com/taiga-shiokawa/obsidian-ai-log) のクローン） |
 
 ## サードパーティのスキル
 
